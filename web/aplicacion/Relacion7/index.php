@@ -1,4 +1,3 @@
-ndice · PHP
 <?php
 // Cargo la plantilla y las librerias de validaciones
 include_once(dirname(__FILE__) . "/../../cabecera.php");
