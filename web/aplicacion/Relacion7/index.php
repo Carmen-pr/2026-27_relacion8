@@ -1,22 +1,22 @@
 <?php
+
 /*
-   Relación 7: gestión de puntos guardados en un fichero por cliente
-   (puntos_dirip_navegador.dat).
-   Incluye alta de punto con errores junto a cada campo, listado en textarea,
-   borrado de un punto y subida de fichero .txt.
-   El controlador procesa las acciones y prepara los datos; la vista los muestra.
+   Relación 7: gestión de puntos en fichero por cliente (puntos_dirip_navegador.dat).
+   Carga los puntos del fichero del cliente al entrar, permite dar de alta puntos
+   (validando x e y entre 0 y 500, color y grosor con errores junto a cada campo),
+   mostrarlos en un textarea, borrar un punto desde un select y subir un .txt.
 */
 
 // Cargo la plantilla y la clase Punto
 include_once(dirname(__FILE__) . "/../../cabecera.php");
 include_once(dirname(__FILE__) . "/../../scripts/clases/Punto.php");
 
-// ---------- Nombre del fichero personalizado por IP y navegador ----------
-// Cojo la IP del cliente y sustituyo puntos y dos puntos por guiones bajos
+// ---------- Nombre del fichero por IP y navegador ----------
+// Saco la IP del cliente y limpio caracteres no válidos para el nombre de fichero
 $ip = $_SERVER["REMOTE_ADDR"] ?? "0_0_0_0";
 $ipLimpia = str_replace([".", ":"], "_", $ip);
 
-// Miro el navegador en HTTP_USER_AGENT para identificar el fichero del cliente
+// Miro el navegador desde HTTP_USER_AGENT
 $agente = $_SERVER["HTTP_USER_AGENT"] ?? "";
 $navegador = "otro";
 if (stripos($agente, "Edg") !== false) {
@@ -27,7 +27,7 @@ if (stripos($agente, "Edg") !== false) {
     $navegador = "firefox";
 }
 
-// Preparo la carpeta de datos y la ruta del fichero puntos_dirip_navegador.dat
+// Preparo la carpeta y el fichero puntos_dirip_navegador.dat
 $carpetaDatos = dirname(__FILE__) . "/datos";
 if (!file_exists($carpetaDatos)) {
     mkdir($carpetaDatos, 0777, true);
@@ -36,13 +36,12 @@ $rutaFichero = $carpetaDatos . "/puntos_" . $ipLimpia . "_" . $navegador . ".dat
 
 
 // controlador
-// Al entrar cargo los puntos del fichero y, si llega POST, ejecuto la acción
-// que corresponda (guardar, borrar o subir un .txt).
+// Primero cargo los puntos del fichero del cliente en $puntos.
+// Después, si llega una petición POST, atiendo la acción correspondiente.
 
-// Cargo los puntos guardados anteriormente en el fichero del cliente
-$puntos = cargarPuntos($rutaFichero);
+$puntos = [];
+cargarPuntos($rutaFichero, $puntos);
 
-// Valores iniciales y errores para el formulario de alta
 $valores = [
     "x" => "",
     "y" => "",
@@ -51,23 +50,23 @@ $valores = [
 ];
 $errores = [];
 
-// Miro qué formulario se ha enviado por POST
+// Compruebo si se ha enviado algún formulario por POST
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    $accion = $_POST["accion"] ?? "";
+    $accion = textoPost("accion");
 
     if ($accion === "guardar") {
-        // Valido x, y, color y grosor; si está bien, añado el punto y guardo
-        [$puntos, $valores, $errores] = procesarAlta($rutaFichero, $puntos);
+        // Valido y añado el nuevo punto si todo es correcto
+        procesarAlta($rutaFichero, $puntos, $valores, $errores);
     } elseif ($accion === "borrar") {
-        // Borro el punto seleccionado, actualizo el fichero y recargo
-        $puntos = procesarBorrado($rutaFichero, $puntos);
+        // Borro el punto seleccionado y actualizo el fichero
+        procesarBorrado($rutaFichero, $puntos);
     } elseif ($accion === "subir") {
-        // Leo el .txt subido, añado los puntos correctos y actualizo el fichero
-        $puntos = procesarSubidaTxt($rutaFichero, $puntos);
+        // Leo el .txt subido y añado los puntos correctos al fichero
+        procesarSubidaTxt($rutaFichero, $puntos);
     }
 }
 
-// Preparo el array que recibe la vista
+// Preparo los datos para la vista
 $datos = [
     "puntos" => $puntos,
     "valores" => $valores,
@@ -93,11 +92,11 @@ finCuerpo();
 // ======================= FUNCIONES DEL CONTROLADOR =======================
 
 /**
- * Coge un dato de $_POST y lo devuelve siempre como texto.
- * Si no existe o llega un array, devuelve una cadena vacía.
+ * Coge un dato de $_POST y lo devuelve siempre como string.
+ * Si no existe o no es string, devuelve una cadena vacía.
  *
- * @param string $campo Nombre del campo del formulario.
- * @return string El valor enviado como texto.
+ * @param string $campo Nombre del campo en $_POST.
+ * @return string
  */
 function textoPost(string $campo): string
 {
@@ -106,48 +105,57 @@ function textoPost(string $campo): string
 }
 
 /**
- * Carga los puntos del fichero .dat y devuelve un array de objetos Punto.
- * Si el fichero todavía no existe, devuelve un array vacío.
+ * Carga en $puntos (por referencia) los puntos guardados en el fichero .dat.
+ * Si el fichero no existe, deja $puntos vacío.
  *
  * @param string $ruta Ruta completa del fichero .dat.
- * @return array<int, Punto> Puntos cargados.
+ * @param array<int, Punto> &$puntos Array donde se cargan los puntos.
+ * @return bool true si se pudo leer (o no existía), false si hubo error al abrir.
  */
-function cargarPuntos(string $ruta): array
+function cargarPuntos(string $ruta, array &$puntos): bool
 {
-    $lista = [];
+    // Vacío el array antes de cargar
+    foreach ($puntos as $pos => $valor) {
+        unset($puntos[$pos]);
+    }
+    $puntos = [];
+
     if (!file_exists($ruta)) {
-        return $lista;
+        return true;
     }
 
     // Abro el fichero en modo lectura
     $fic = fopen($ruta, "r");
-    if ($fic === false) {
-        return $lista;
+    if (!$fic) {
+        return false;
     }
 
-    // Leo cada línea con formato "x; y; color; grosor" e instancio Punto
+    // Leo línea a línea y creo los objetos Punto válidos
     while (($linea = fgets($fic)) !== false) {
+        $linea = str_replace("\r", "", $linea);
+        $linea = str_replace("\n", "", $linea);
         $linea = trim($linea);
-        if ($linea === "") {
-            continue;
-        }
-        $partes = explode(";", $linea);
-        if (count($partes) === 4) {
-            try {
-                $lista[] = new Punto(
-                    (int) trim($partes[0]),
-                    (int) trim($partes[1]),
-                    trim($partes[2]),
-                    (int) trim($partes[3])
-                );
-            } catch (Exception $e) {
-                // Si una línea no cumple las reglas de Punto, la ignoro
+
+        if ($linea !== "") {
+            $partes = explode(";", $linea);
+            if (count($partes) === 4) {
+                try {
+                    $puntos[] = new Punto(
+                        (int) trim($partes[0]),
+                        (int) trim($partes[1]),
+                        trim($partes[2]),
+                        (int) trim($partes[3])
+                    );
+                } catch (Exception $e) {
+                    // Si alguna línea no cumple las reglas de Punto, la omito
+                }
             }
         }
     }
 
+    // Cierro el fichero
     fclose($fic);
-    return $lista;
+    return true;
 }
 
 /**
@@ -155,33 +163,37 @@ function cargarPuntos(string $ruta): array
  *
  * @param string $ruta Ruta completa del fichero .dat.
  * @param array<int, Punto> $puntos Array de objetos Punto.
- * @return void
+ * @return bool true si se guardó correctamente, false si falló la apertura.
  */
-function guardarPuntos(string $ruta, array $puntos): void
+function guardarPuntos(string $ruta, array $puntos): bool
 {
-    // Abro con "w" para reescribir el fichero con la lista actualizada
+    // Abro el fichero en modo escritura (truncando su contenido anterior)
     $fic = fopen($ruta, "w");
-    if ($fic === false) {
-        return;
+    if (!$fic) {
+        return false;
     }
 
     foreach ($puntos as $punto) {
         fputs($fic, $punto . PHP_EOL);
     }
 
+    // Cierro el fichero
     fclose($fic);
+    return true;
 }
 
 /**
- * Valida los datos del formulario de alta (x e y entre 0 y 500, color y grosor).
- * Si no hay errores, crea el Punto, lo guarda en el fichero y redirige.
- * Si hay errores, devuelve los valores escritos y los errores por campo.
+ * Valida el formulario de alta (x e y entre 0 y 500, color y grosor).
+ * Si no hay errores, crea el Punto, lo guarda en $puntos y en el fichero, y redirige.
+ * Si hay errores, rellena $valores y $errores por referencia.
  *
  * @param string $rutaFichero Ruta del fichero .dat.
- * @param array<int, Punto> $puntos Puntos actuales.
- * @return array [puntos actualizados, valores del formulario, errores por campo].
+ * @param array<int, Punto> &$puntos Array de puntos.
+ * @param array &$valores Valores introducidos en el formulario.
+ * @param array &$errores Mensajes de error por campo.
+ * @return void
  */
-function procesarAlta(string $rutaFichero, array $puntos): array
+function procesarAlta(string $rutaFichero, array &$puntos, array &$valores, array &$errores): void
 {
     $xTexto = trim(textoPost("x"));
     $yTexto = trim(textoPost("y"));
@@ -196,7 +208,7 @@ function procesarAlta(string $rutaFichero, array $puntos): array
     ];
     $errores = [];
 
-    // ---- Coordenada X: número entero entre 0 y 500 ----
+    // ---- Coordenada X: entero entre 0 y 500 ----
     if ($xTexto === "" || preg_match('/^-?\d+$/', $xTexto) !== 1) {
         $errores["x"] = "La coordenada X debe ser un número entero";
     } else {
@@ -206,7 +218,7 @@ function procesarAlta(string $rutaFichero, array $puntos): array
         }
     }
 
-    // ---- Coordenada Y: número entero entre 0 y 500 ----
+    // ---- Coordenada Y: entero entre 0 y 500 ----
     if ($yTexto === "" || preg_match('/^-?\d+$/', $yTexto) !== 1) {
         $errores["y"] = "La coordenada Y debe ser un número entero";
     } else {
@@ -216,12 +228,12 @@ function procesarAlta(string $rutaFichero, array $puntos): array
         }
     }
 
-    // ---- Color: tiene que existir en Punto::COLORES ----
+    // ---- Color: debe existir en Punto::COLORES ----
     if ($color === "" || !array_key_exists($color, Punto::COLORES)) {
         $errores["color"] = "Debe seleccionar un color válido";
     }
 
-    // ---- Grosor: tiene que existir en Punto::GROSORES ----
+    // ---- Grosor: debe existir en Punto::GROSORES ----
     $grosorNum = 0;
     if ($grosorTexto === "" || !ctype_digit($grosorTexto)) {
         $errores["grosor"] = "Debe seleccionar un grosor";
@@ -232,7 +244,7 @@ function procesarAlta(string $rutaFichero, array $puntos): array
         }
     }
 
-    // Si todo es correcto, añado el punto, actualizo el fichero y redirijo
+    // Si no hay errores, creo el objeto Punto, lo guardo y redirijo
     if (count($errores) === 0) {
         try {
             $puntos[] = new Punto((int) $xTexto, (int) $yTexto, $color, $grosorNum);
@@ -243,24 +255,21 @@ function procesarAlta(string $rutaFichero, array $puntos): array
             $errores["x"] = $e->getMessage();
         }
     }
-
-    return [$puntos, $valores, $errores];
 }
 
 /**
- * Borra el punto elegido en el combo, actualiza el fichero .dat y recarga.
+ * Borra el punto seleccionado en el desplegable, actualiza el fichero y redirige.
  *
  * @param string $rutaFichero Ruta del fichero .dat.
- * @param array<int, Punto> $puntos Puntos actuales.
- * @return array<int, Punto> Puntos actualizados.
+ * @param array<int, Punto> &$puntos Array de puntos.
+ * @return void
  */
-function procesarBorrado(string $rutaFichero, array $puntos): array
+function procesarBorrado(string $rutaFichero, array &$puntos): void
 {
     $indiceTexto = trim(textoPost("indice_borrar"));
     if ($indiceTexto !== "" && ctype_digit($indiceTexto)) {
         $indice = (int) $indiceTexto;
         if (isset($puntos[$indice])) {
-            // Elimino el punto y reindexo el array para no dejar huecos
             unset($puntos[$indice]);
             $puntos = array_values($puntos);
             guardarPuntos($rutaFichero, $puntos);
@@ -268,51 +277,52 @@ function procesarBorrado(string $rutaFichero, array $puntos): array
             exit();
         }
     }
-
-    return $puntos;
 }
 
 /**
- * Lee el fichero .txt subido y añade los puntos válidos al fichero .dat.
+ * Lee el fichero .txt subido mediante $_FILES y añade los puntos válidos.
  *
  * @param string $rutaFichero Ruta del fichero .dat.
- * @param array<int, Punto> $puntos Puntos actuales.
- * @return array<int, Punto> Puntos actualizados.
+ * @param array<int, Punto> &$puntos Array de puntos.
+ * @return void
  */
-function procesarSubidaTxt(string $rutaFichero, array $puntos): array
+function procesarSubidaTxt(string $rutaFichero, array &$puntos): void
 {
-    // Compruebo que se haya subido el archivo sin errores
+    // Compruebo que se haya subido el fichero sin errores
     if (!isset($_FILES["fichero_txt"]) || $_FILES["fichero_txt"]["error"] !== UPLOAD_ERR_OK) {
-        return $puntos;
+        return;
     }
 
     $ficTxt = fopen($_FILES["fichero_txt"]["tmp_name"], "r");
-    if ($ficTxt === false) {
-        return $puntos;
+    if (!$ficTxt) {
+        return;
     }
 
     $hayCambios = false;
     while (($linea = fgets($ficTxt)) !== false) {
+        $linea = str_replace("\r", "", $linea);
+        $linea = str_replace("\n", "", $linea);
         $linea = trim($linea);
-        if ($linea === "") {
-            continue;
-        }
-        $partes = explode(";", $linea);
-        if (count($partes) === 4) {
-            try {
-                $puntos[] = new Punto(
-                    (int) trim($partes[0]),
-                    (int) trim($partes[1]),
-                    trim($partes[2]),
-                    (int) trim($partes[3])
-                );
-                $hayCambios = true;
-            } catch (Exception $e) {
-                // Si una línea no es válida, no la añado
+
+        if ($linea !== "") {
+            $partes = explode(";", $linea);
+            if (count($partes) === 4) {
+                try {
+                    $puntos[] = new Punto(
+                        (int) trim($partes[0]),
+                        (int) trim($partes[1]),
+                        trim($partes[2]),
+                        (int) trim($partes[3])
+                    );
+                    $hayCambios = true;
+                } catch (Exception $e) {
+                    // Si alguna línea no es válida, no la añado
+                }
             }
         }
     }
 
+    // Cierro el fichero temporal
     fclose($ficTxt);
 
     if ($hayCambios) {
@@ -320,6 +330,6 @@ function procesarSubidaTxt(string $rutaFichero, array $puntos): array
         header("Location: index.php");
         exit();
     }
-
-    return $puntos;
 }
+
+// =============================== VISTA =================================

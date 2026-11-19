@@ -2,15 +2,13 @@
 
 /*
    Clase Punto: representa un punto con coordenadas x e y, color y grosor.
-   Valida cada valor mediante métodos set, lanza una excepción en el
-   constructor si algo no es correcto y bloquea las propiedades dinámicas
-   con el método mágico __set.
+   Valida cada valor en los setters, lanza una excepción en el constructor
+   si algún dato no es válido y bloquea propiedades dinámicas con __set.
 */
 
 class Punto
 {
     // ---------- Constantes públicas de la clase ----------
-    // Colores permitidos: clave en inglés => ["nombre" => español, "rgb" => [r, g, b]]
     public const COLORES = [
         "black" => ["nombre" => "negro", "rgb" => [0, 0, 0]],
         "red"   => ["nombre" => "rojo",  "rgb" => [255, 0, 0]],
@@ -18,7 +16,6 @@ class Punto
         "blue"  => ["nombre" => "azul",  "rgb" => [0, 0, 255]],
     ];
 
-    // Grosores permitidos: código entero => nombre
     public const GROSORES = [
         1 => "fino",
         2 => "medio",
@@ -32,19 +29,18 @@ class Punto
     private int $_grosor;
 
     /**
-     * Constructor de la clase Punto.
-     * Comprueba los cuatro valores usando los métodos set y, si alguno
-     * devuelve false, lanza una excepción para no crear un objeto inválido.
+     * Constructor de Punto: llama a los setters para validar cada parámetro.
+     * Si algún setter devuelve false, lanza una excepción.
      *
-     * @param int $x Coordenada X (entre 0 y 20000).
-     * @param int $y Coordenada Y (entre 0 y 20000).
+     * @param int $x Coordenada X (0 a 20000).
+     * @param int $y Coordenada Y (0 a 20000).
      * @param string $color Clave del color en COLORES.
-     * @param int $grosor Identificador del grosor en GROSORES.
-     * @throws Exception Si algún parámetro no cumple las restricciones.
+     * @param int $grosor Código del grosor en GROSORES.
+     * @throws Exception Si algún valor no cumple las restricciones.
      */
     public function __construct(int $x, int $y, string $color, int $grosor)
     {
-        // Valido todos los campos; si alguno falla, lanzo excepción
+        // Compruebo todos los setters; si alguno falla, lanzo excepción
         if (!$this->setX($x) || !$this->setY($y) || !$this->setColor($color) || !$this->setGrosor($grosor)) {
             throw new Exception("Datos no válidos para crear el punto");
         }
@@ -53,7 +49,7 @@ class Punto
     // ---------- Getters ----------
 
     /**
-     * Devuelve la coordenada X del punto.
+     * Devuelve la coordenada X.
      *
      * @return int
      */
@@ -63,7 +59,7 @@ class Punto
     }
 
     /**
-     * Devuelve la coordenada Y del punto.
+     * Devuelve la coordenada Y.
      *
      * @return int
      */
@@ -73,7 +69,7 @@ class Punto
     }
 
     /**
-     * Devuelve el color del punto (en inglés según COLORES).
+     * Devuelve el color del punto.
      *
      * @return string
      */
@@ -98,7 +94,7 @@ class Punto
      * Asigna la coordenada X si está entre 0 y 20000.
      *
      * @param int $x
-     * @return bool true si es válida y se guarda, false en caso contrario.
+     * @return bool true si es correcto, false si no.
      */
     public function setX(int $x): bool
     {
@@ -113,7 +109,7 @@ class Punto
      * Asigna la coordenada Y si está entre 0 y 20000.
      *
      * @param int $y
-     * @return bool true si es válida y se guarda, false en caso contrario.
+     * @return bool true si es correcto, false si no.
      */
     public function setY(int $y): bool
     {
@@ -125,10 +121,10 @@ class Punto
     }
 
     /**
-     * Asigna el color si existe como clave en la constante COLORES.
+     * Asigna el color si existe en la constante COLORES.
      *
      * @param string $color
-     * @return bool true si es válido y se guarda, false en caso contrario.
+     * @return bool true si es correcto, false si no.
      */
     public function setColor(string $color): bool
     {
@@ -140,10 +136,10 @@ class Punto
     }
 
     /**
-     * Asigna el grosor si existe como clave en la constante GROSORES.
+     * Asigna el grosor si existe en la constante GROSORES.
      *
      * @param int $grosor
-     * @return bool true si es válido y se guarda, false en caso contrario.
+     * @return bool true si es correcto, false si no.
      */
     public function setGrosor(int $grosor): bool
     {
@@ -157,19 +153,19 @@ class Punto
     // ---------- Métodos mágicos ----------
 
     /**
-     * Bloquea la creación de propiedades dinámicas lanzando una excepción.
+     * Impide la creación de propiedades dinámicas lanzando una excepción.
      *
-     * @param string $nombre Nombre de la propiedad dinámica.
+     * @param string $nombre Nombre de la propiedad.
      * @param mixed $valor Valor que se intenta asignar.
      * @throws Exception Siempre que se intente crear una propiedad dinámica.
      */
     public function __set(string $nombre, mixed $valor): void
     {
-        throw new Exception("No se pueden crear propiedades dinámicas: " . $nombre);
+        throw new Exception("No se permiten propiedades dinámicas: " . $nombre);
     }
 
     /**
-     * Devuelve el punto con el formato "x; y; color; grosor".
+     * Devuelve el punto formateado como "x; y; color; grosor".
      *
      * @return string
      */
