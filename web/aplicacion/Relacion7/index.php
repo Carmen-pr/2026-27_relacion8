@@ -333,3 +333,45 @@ function procesarSubidaTxt(string $rutaFichero, array &$puntos): void
 }
 
 // =============================== VISTA =================================
+
+function cabecera() {}
+
+/**
+ * Escapa un valor para mostrarlo de forma segura en HTML.
+ *
+ * @param mixed $valor Valor a mostrar.
+ * @return string Texto escapado.
+ */
+function esc(mixed $valor): string
+{
+    return htmlspecialchars((string) $valor, ENT_QUOTES, "UTF-8");
+}
+
+/**
+ * Si el campo tiene un error, escribe el mensaje correspondiente.
+ *
+ * @param array $errores Errores por campo.
+ * @param string $campo Nombre del campo.
+ * @return void
+ */
+function mostrarError(array $errores, string $campo): void
+{
+    if (isset($errores[$campo])) {
+        echo '<span style="color:red;">' . esc($errores[$campo]) . '</span>';
+    }
+}
+
+/**
+ * Vista principal: muestra los formularios de alta, borrado y subida de .txt,
+ * junto con el textarea de puntos almacenados.
+ *
+ * @param array $datos Datos preparados por el controlador.
+ * @return void
+ */
+
+function cuerpo($datos)
+{
+?>
+    
+<?php
+}
