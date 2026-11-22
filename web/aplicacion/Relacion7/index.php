@@ -334,13 +334,18 @@ function procesarSubidaTxt(string $rutaFichero, array &$puntos): void
 
 // =============================== VISTA =================================
 
+/**
+ * Contenido adicional para la cabecera de la plantilla.
+ *
+ * @return void
+ */
 function cabecera() {}
 
 /**
- * Escapa un valor para mostrarlo de forma segura en HTML.
+ * Escapa un valor para mostrarlo de forma segura dentro del HTML.
  *
  * @param mixed $valor Valor a mostrar.
- * @return string Texto escapado.
+ * @return string Texto escapado para HTML.
  */
 function esc(mixed $valor): string
 {
@@ -348,10 +353,10 @@ function esc(mixed $valor): string
 }
 
 /**
- * Si el campo tiene un error, escribe el mensaje correspondiente.
+ * Muestra el mensaje de error asociado a un campo si existe en $errores.
  *
- * @param array $errores Errores por campo.
- * @param string $campo Nombre del campo.
+ * @param array $errores Array de errores indexado por nombre de campo.
+ * @param string $campo Nombre del campo a comprobar.
  * @return void
  */
 function mostrarError(array $errores, string $campo): void
@@ -362,16 +367,110 @@ function mostrarError(array $errores, string $campo): void
 }
 
 /**
- * Vista principal: muestra los formularios de alta, borrado y subida de .txt,
- * junto con el textarea de puntos almacenados.
+ * Dibuja el cuerpo de la página: formulario de alta, textarea con los puntos,
+ * formulario de borrado y formulario para subir un fichero .txt.
  *
  * @param array $datos Datos preparados por el controlador.
  * @return void
  */
-
-function cuerpo($datos)
+function cuerpo(array $datos): void
 {
+    // Saco del array $datos las partes que necesita la vista
+    $puntos = $datos["puntos"];
+    $valores = $datos["valores"];
+    $errores = $datos["errores"];
 ?>
-    
+    <h2>Relación 7: gestión de puntos</h2>
+
+    <!-- Formulario 1: alta de punto -->
+    <form method="post" action="index.php">
+        <input type="hidden" name="accion" value="guardar">
+        <p>
+            <label>Coordenada X (0 a 500):
+                <input type="text" name="x" value="<?php echo esc($valores["x"]); ?>">
+            </label>
+            <?php mostrarError($errores, "x"); ?>
+        </p>
+        <p>
+            <label>Coordenada Y (0 a 500):
+                <input type="text" name="y" value="<?php echo esc($valores["y"]); ?>">
+            </label>
+            <?php mostrarError($errores, "y"); ?>
+        </p>
+        <p>
+            <label>Color:
+                <select name="color">
+                    <option value="">-- Elige un color --</option>
+                    <?php foreach (Punto::COLORES as $clave => $info) { ?>
+                        <option value="<?php echo esc($clave); ?>"
+                            <?php if ($valores["color"] === $clave) {
+                                echo "selected";
+                            } ?>>
+                            <?php echo esc($info["nombre"]); ?>
+                        </option>
+                    <?php } ?>
+                </select>
+            </label>
+            <?php mostrarError($errores, "color"); ?>
+        </p>
+        <p>
+            Grosor:
+            <?php foreach (Punto::GROSORES as $codigo => $nombre) { ?>
+                <label>
+                    <input type="radio" name="grosor" value="<?php echo $codigo; ?>"
+                        <?php if ($valores["grosor"] === (string) $codigo) {
+                            echo "checked";
+                        } ?>>
+                    <?php echo esc($nombre); ?>
+                </label>
+            <?php } ?>
+            <?php mostrarError($errores, "grosor"); ?>
+        </p>
+        <p><input type="submit" value="Guardar punto"></p>
+    </form>
+
+    <hr>
+
+    <!-- Textarea con todos los puntos almacenados, uno por línea -->
+    <p>
+        <label for="puntos_guardados">Puntos almacenados:</label><br>
+        <textarea id="puntos_guardados" rows="8" cols="45" readonly><?php
+                                                                    foreach ($puntos as $punto) {
+                                                                        echo esc((string) $punto) . PHP_EOL;
+                                                                    }
+                                                                    ?></textarea>
+    </p>
+
+    <!-- Formulario 2: borrar el punto seleccionado -->
+    <?php if (count($puntos) > 0) { ?>
+        <form method="post" action="index.php">
+            <input type="hidden" name="accion" value="borrar">
+            <p>
+                <label>Punto a borrar:
+                    <select name="indice_borrar">
+                        <?php foreach ($puntos as $indice => $punto) { ?>
+                            <option value="<?php echo $indice; ?>">
+                                <?php echo esc((string) $punto); ?>
+                            </option>
+                        <?php } ?>
+                    </select>
+                </label>
+                <input type="submit" value="Borrar">
+            </p>
+        </form>
+    <?php } ?>
+
+    <hr>
+
+    <!-- Formulario 3: subir fichero .txt con puntos -->
+    <form method="post" action="index.php" enctype="multipart/form-data">
+        <input type="hidden" name="accion" value="subir">
+        <p>
+            <label>Fichero .txt:
+                <input type="file" name="fichero_txt" accept=".txt">
+            </label>
+            <input type="submit" value="Subir fichero">
+        </p>
+    </form>
 <?php
 }
