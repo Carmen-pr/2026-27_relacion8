@@ -1,5 +1,4 @@
 <?php
-
 /*
    Clase Punto: representa un punto con coordenadas x e y, color y grosor.
    Valida cada valor en los setters, lanza una excepción en el constructor

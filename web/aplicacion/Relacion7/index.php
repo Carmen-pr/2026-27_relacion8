@@ -1,18 +1,19 @@
 <?php
-
 /*
-   Relación 7: gestión de puntos en fichero por cliente (puntos_dirip_navegador.dat).
-   Carga los puntos del fichero del cliente al entrar, permite dar de alta puntos
-   (validando x e y entre 0 y 500, color y grosor con errores junto a cada campo),
-   mostrarlos en un textarea, borrar un punto desde un select y subir un .txt.
+   Relación 7: gestión de puntos guardados en puntos_dirip_navegador.dat
+   y dibujados en /imagenes/puntos/imagen_dirip_navegador.jpg.
+   Permite dar de alta puntos con validación y errores junto a cada campo,
+   mostrarlos en un textarea y debajo la imagen con su enlace de descarga,
+   borrar puntos desde un combo, descargar la imagen al vuelo desde imagen.php
+   y subir un fichero .txt.
 */
 
 // Cargo la plantilla y la clase Punto
 include_once(dirname(__FILE__) . "/../../cabecera.php");
 include_once(dirname(__FILE__) . "/../../scripts/clases/Punto.php");
 
-// ---------- Nombre del fichero por IP y navegador ----------
-// Saco la IP del cliente y limpio caracteres no válidos para el nombre de fichero
+// ---------- Nombre de ficheros personalizado por IP y navegador ----------
+// Saco la IP del cliente y sustituyo caracteres conflictivos para el nombre de archivo
 $ip = $_SERVER["REMOTE_ADDR"] ?? "0_0_0_0";
 $ipLimpia = str_replace([".", ":"], "_", $ip);
 
@@ -27,20 +28,34 @@ if (stripos($agente, "Edg") !== false) {
     $navegador = "firefox";
 }
 
-// Preparo la carpeta y el fichero puntos_dirip_navegador.dat
+// Preparo la carpeta de datos y la ruta del fichero puntos_dirip_navegador.dat
 $carpetaDatos = dirname(__FILE__) . "/datos";
 if (!file_exists($carpetaDatos)) {
     mkdir($carpetaDatos, 0777, true);
 }
 $rutaFichero = $carpetaDatos . "/puntos_" . $ipLimpia . "_" . $navegador . ".dat";
 
+// Preparo la carpeta /imagenes/puntos/ y las rutas de la imagen personalizada
+$carpetaImagenes = RUTABASE . "/imagenes/puntos";
+if (!file_exists($carpetaImagenes)) {
+    mkdir($carpetaImagenes, 0777, true);
+}
+$nombreImagen = "imagen_" . $ipLimpia . "_" . $navegador . ".jpg";
+$rutaImagen = $carpetaImagenes . "/" . $nombreImagen;
+$urlImagen = "/imagenes/puntos/" . $nombreImagen;
+
 
 // controlador
 // Primero cargo los puntos del fichero del cliente en $puntos.
-// Después, si llega una petición POST, atiendo la acción correspondiente.
+// Si la imagen aún no existe al conectarse el usuario, la creo inicialmente.
+// Después, si llega POST, ejecuto la acción que corresponda.
 
 $puntos = [];
 cargarPuntos($rutaFichero, $puntos);
+
+if (!file_exists($rutaImagen)) {
+    generarImagenFichero($rutaImagen, $puntos);
+}
 
 $valores = [
     "x" => "",
@@ -55,22 +70,23 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $accion = textoPost("accion");
 
     if ($accion === "guardar") {
-        // Valido y añado el nuevo punto si todo es correcto
-        procesarAlta($rutaFichero, $puntos, $valores, $errores);
+        // Valido y añado el nuevo punto; si es correcto, actualizo .dat e imagen
+        procesarAlta($rutaFichero, $rutaImagen, $puntos, $valores, $errores);
     } elseif ($accion === "borrar") {
-        // Borro el punto seleccionado y actualizo el fichero
-        procesarBorrado($rutaFichero, $puntos);
+        // Borro el punto seleccionado y actualizo .dat e imagen
+        procesarBorrado($rutaFichero, $rutaImagen, $puntos);
     } elseif ($accion === "subir") {
-        // Leo el .txt subido y añado los puntos correctos al fichero
-        procesarSubidaTxt($rutaFichero, $puntos);
+        // Leo el .txt subido, añado los puntos válidos y actualizo .dat e imagen
+        procesarSubidaTxt($rutaFichero, $rutaImagen, $puntos);
     }
 }
 
-// Preparo los datos para la vista
+// Preparo el array de datos que recibe la vista
 $datos = [
     "puntos" => $puntos,
     "valores" => $valores,
     "errores" => $errores,
+    "urlImagen" => $urlImagen,
 ];
 
 // Barra de ubicación
@@ -114,7 +130,6 @@ function textoPost(string $campo): string
  */
 function cargarPuntos(string $ruta, array &$puntos): bool
 {
-    // Vacío el array antes de cargar
     foreach ($puntos as $pos => $valor) {
         unset($puntos[$pos]);
     }
@@ -183,17 +198,77 @@ function guardarPuntos(string $ruta, array $puntos): bool
 }
 
 /**
+ * Crea o actualiza en disco la imagen JPG personalizada del cliente
+ * con fondo blanco, marco y los puntos actuales.
+ *
+ * @param string $rutaImagen Ruta completa del fichero imagen_dirip_navegador.jpg.
+ * @param array<int, Punto> $puntos Array de objetos Punto a dibujar.
+ * @return bool true si se generó correctamente, false en caso contrario.
+ */
+function generarImagenFichero(string $rutaImagen, array $puntos): bool
+{
+    $carpeta = dirname($rutaImagen);
+    if (!file_exists($carpeta)) {
+        mkdir($carpeta, 0777, true);
+    }
+
+    // Creo el lienzo de 500x500 y asigno blanco para el fondo y negro para el marco
+    $ancho = 500;
+    $alto = 500;
+    $imagen = imagecreatetruecolor($ancho, $alto);
+    if (!$imagen) {
+        return false;
+    }
+
+    $blanco = imagecolorallocate($imagen, 255, 255, 255);
+    $negro = imagecolorallocate($imagen, 0, 0, 0);
+
+    // Relleno el fondo de blanco y dibujo el marco exterior
+    imagefilledrectangle($imagen, 0, 0, $ancho - 1, $alto - 1, $blanco);
+    imagerectangle($imagen, 0, 0, $ancho - 1, $alto - 1, $negro);
+
+    // Dibujo cada punto con su color RGB de Punto::COLORES y su grosor
+    foreach ($puntos as $punto) {
+        $rgb = Punto::COLORES[$punto->getColor()]["rgb"];
+        $colorPunto = imagecolorallocate($imagen, $rgb[0], $rgb[1], $rgb[2]);
+
+        $diametro = match ($punto->getGrosor()) {
+            1 => 3,
+            2 => 6,
+            3 => 10,
+            default => 5,
+        };
+
+        imagefilledellipse(
+            $imagen,
+            $punto->getX(),
+            $punto->getY(),
+            $diametro,
+            $diametro,
+            $colorPunto
+        );
+    }
+
+    // Guardo la imagen JPG en disco y libero memoria
+    $ok = imagejpeg($imagen, $rutaImagen);
+    imagedestroy($imagen);
+
+    return $ok;
+}
+
+/**
  * Valida el formulario de alta (x e y entre 0 y 500, color y grosor).
- * Si no hay errores, crea el Punto, lo guarda en $puntos y en el fichero, y redirige.
+ * Si no hay errores, crea el Punto, actualiza .dat e imagen y redirige.
  * Si hay errores, rellena $valores y $errores por referencia.
  *
  * @param string $rutaFichero Ruta del fichero .dat.
+ * @param string $rutaImagen Ruta del fichero .jpg.
  * @param array<int, Punto> &$puntos Array de puntos.
  * @param array &$valores Valores introducidos en el formulario.
  * @param array &$errores Mensajes de error por campo.
  * @return void
  */
-function procesarAlta(string $rutaFichero, array &$puntos, array &$valores, array &$errores): void
+function procesarAlta(string $rutaFichero, string $rutaImagen, array &$puntos, array &$valores, array &$errores): void
 {
     $xTexto = trim(textoPost("x"));
     $yTexto = trim(textoPost("y"));
@@ -244,11 +319,12 @@ function procesarAlta(string $rutaFichero, array &$puntos, array &$valores, arra
         }
     }
 
-    // Si no hay errores, creo el objeto Punto, lo guardo y redirijo
+    // Si todo es válido, añado el punto, actualizo el fichero y la imagen, y redirijo
     if (count($errores) === 0) {
         try {
             $puntos[] = new Punto((int) $xTexto, (int) $yTexto, $color, $grosorNum);
             guardarPuntos($rutaFichero, $puntos);
+            generarImagenFichero($rutaImagen, $puntos);
             header("Location: index.php");
             exit();
         } catch (Exception $e) {
@@ -258,13 +334,15 @@ function procesarAlta(string $rutaFichero, array &$puntos, array &$valores, arra
 }
 
 /**
- * Borra el punto seleccionado en el desplegable, actualiza el fichero y redirige.
+ * Borra el punto seleccionado en el desplegable, actualiza el fichero .dat
+ * y la imagen personalizada, y recarga index.php.
  *
  * @param string $rutaFichero Ruta del fichero .dat.
+ * @param string $rutaImagen Ruta del fichero .jpg.
  * @param array<int, Punto> &$puntos Array de puntos.
  * @return void
  */
-function procesarBorrado(string $rutaFichero, array &$puntos): void
+function procesarBorrado(string $rutaFichero, string $rutaImagen, array &$puntos): void
 {
     $indiceTexto = trim(textoPost("indice_borrar"));
     if ($indiceTexto !== "" && ctype_digit($indiceTexto)) {
@@ -273,6 +351,7 @@ function procesarBorrado(string $rutaFichero, array &$puntos): void
             unset($puntos[$indice]);
             $puntos = array_values($puntos);
             guardarPuntos($rutaFichero, $puntos);
+            generarImagenFichero($rutaImagen, $puntos);
             header("Location: index.php");
             exit();
         }
@@ -280,15 +359,16 @@ function procesarBorrado(string $rutaFichero, array &$puntos): void
 }
 
 /**
- * Lee el fichero .txt subido mediante $_FILES y añade los puntos válidos.
+ * Lee el fichero .txt subido mediante $_FILES, añade los puntos válidos
+ * y actualiza el fichero .dat y la imagen personalizada.
  *
  * @param string $rutaFichero Ruta del fichero .dat.
+ * @param string $rutaImagen Ruta del fichero .jpg.
  * @param array<int, Punto> &$puntos Array de puntos.
  * @return void
  */
-function procesarSubidaTxt(string $rutaFichero, array &$puntos): void
+function procesarSubidaTxt(string $rutaFichero, string $rutaImagen, array &$puntos): void
 {
-    // Compruebo que se haya subido el fichero sin errores
     if (!isset($_FILES["fichero_txt"]) || $_FILES["fichero_txt"]["error"] !== UPLOAD_ERR_OK) {
         return;
     }
@@ -327,25 +407,27 @@ function procesarSubidaTxt(string $rutaFichero, array &$puntos): void
 
     if ($hayCambios) {
         guardarPuntos($rutaFichero, $puntos);
+        generarImagenFichero($rutaImagen, $puntos);
         header("Location: index.php");
         exit();
     }
 }
 
-// =============================== VISTA =================================
+
+// ======================= VISTA =======================
 
 /**
- * Contenido adicional para la cabecera de la plantilla.
+ * Cosas extra de la cabecera (de momento no hay nada).
  *
  * @return void
  */
 function cabecera() {}
 
 /**
- * Escapa un valor para mostrarlo de forma segura dentro del HTML.
+ * Escapa un valor para mostrarlo de forma segura en HTML.
  *
  * @param mixed $valor Valor a mostrar.
- * @return string Texto escapado para HTML.
+ * @return string Texto escapado.
  */
 function esc(mixed $valor): string
 {
@@ -353,10 +435,10 @@ function esc(mixed $valor): string
 }
 
 /**
- * Muestra el mensaje de error asociado a un campo si existe en $errores.
+ * Si el campo tiene un error, escribe el mensaje correspondiente.
  *
- * @param array $errores Array de errores indexado por nombre de campo.
- * @param string $campo Nombre del campo a comprobar.
+ * @param array $errores Errores por campo.
+ * @param string $campo Nombre del campo.
  * @return void
  */
 function mostrarError(array $errores, string $campo): void
@@ -367,22 +449,22 @@ function mostrarError(array $errores, string $campo): void
 }
 
 /**
- * Dibuja el cuerpo de la página: formulario de alta, textarea con los puntos,
- * formulario de borrado y formulario para subir un fichero .txt.
+ * Vista principal: muestra los formularios de alta, borrado y subida de .txt,
+ * el textarea con los puntos almacenados y debajo la imagen con descarga.
  *
  * @param array $datos Datos preparados por el controlador.
  * @return void
  */
 function cuerpo(array $datos): void
 {
-    // Saco del array $datos las partes que necesita la vista
     $puntos = $datos["puntos"];
     $valores = $datos["valores"];
     $errores = $datos["errores"];
+    $urlImagen = $datos["urlImagen"];
 ?>
     <h2>Relación 7: gestión de puntos</h2>
 
-    <!-- Formulario 1: alta de punto -->
+    <!-- Formulario 1: añadir un punto (x e y entre 0 y 500, color y grosor) -->
     <form method="post" action="index.php">
         <input type="hidden" name="accion" value="guardar">
         <p>
@@ -439,6 +521,14 @@ function cuerpo(array $datos): void
                                                                         echo esc((string) $punto) . PHP_EOL;
                                                                     }
                                                                     ?></textarea>
+    </p>
+
+    <!-- Imagen generada y enlace de descarga debajo del textarea -->
+    <p>
+        <label>Imagen generada:</label><br>
+        <img src="<?php echo esc($urlImagen); ?>?v=<?php echo time(); ?>"
+            alt="Imagen de puntos" width="300" height="300"><br>
+        <a href="imagen.php">Descargar imagen</a>
     </p>
 
     <!-- Formulario 2: borrar el punto seleccionado -->

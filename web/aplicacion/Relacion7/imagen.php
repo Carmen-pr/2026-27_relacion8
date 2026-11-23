@@ -11,11 +11,9 @@ include_once(dirname(__FILE__) . "/../../cabecera.php");
 include_once(dirname(__FILE__) . "/../../scripts/clases/Punto.php");
 
 // ---------- Nombre del fichero .dat del cliente (IP y navegador) ----------
-// Obtengo la IP del cliente y limpio caracteres como puntos o dos puntos
 $ip = $_SERVER["REMOTE_ADDR"] ?? "0_0_0_0";
 $ipLimpia = str_replace([".", ":"], "_", $ip);
 
-// Detecto el navegador a partir de HTTP_USER_AGENT
 $agente = $_SERVER["HTTP_USER_AGENT"] ?? "";
 $navegador = "otro";
 if (stripos($agente, "Edg") !== false) {
@@ -26,7 +24,6 @@ if (stripos($agente, "Edg") !== false) {
     $navegador = "firefox";
 }
 
-// Ruta del fichero de puntos del cliente actual
 $rutaFichero = dirname(__FILE__) . "/datos/puntos_" . $ipLimpia . "_" . $navegador . ".dat";
 
 // Cargo los puntos actuales desde el fichero del cliente
@@ -132,12 +129,11 @@ function crearImagenAlVuelo(array $puntos): GdImage|false
         $rgb = Punto::COLORES[$punto->getColor()]["rgb"];
         $colorPunto = imagecolorallocate($imagen, $rgb[0], $rgb[1], $rgb[2]);
 
-        // Determino el tamaño del punto según la constante GROSORES (1, 2, 3)
         $diametro = match ($punto->getGrosor()) {
-            1 => 4,
-            2 => 8,
-            3 => 14,
-            default => 6,
+            1 => 6,
+            2 => 12,
+            3 => 20,
+            default => 10,
         };
 
         imagefilledellipse(
