@@ -1,8 +1,9 @@
 <?php
 // Incluimos la cabecera general de la aplicación para cargar constantes, sesión, autocarga y plantilla
-include_once($_SERVER["DOCUMENT_ROOT"] . "/cabecera.php");
+include_once(dirname(__FILE__) . "/../../cabecera.php");
 
-// Establecemos los colores por defecto según el enunciado: fondo blanco y texto negro
+// --- CONTROLADOR ---
+// Colores por defecto según el enunciado: fondo blanco y texto negro
 $colorFondo = "white";
 $colorTexto = "black";
 
@@ -25,23 +26,49 @@ if (isset($_COOKIE["contador_personalizar"])) {
 
 // Actualizamos la cookie del contador (vigente por ejemplo durante 30 días)
 setcookie("contador_personalizar", (string) $visitas, time() + 60 * 60 * 24 * 30, "/");
-?>
-<!DOCTYPE html>
-<html lang="es">
 
-<head>
-    <meta charset="UTF-8">
-    <title>Inicio Personalizar - Relación 8</title>
+// Barra de navegación superior de la plantilla
+$barra = [
+    [
+        "TEXTO" => "inicio",
+        "ENLACE" => "/index.php",
+        "ADICIONAL" => " "
+    ],
+    [
+        "TEXTO" => "Relacion 8",
+        "ENLACE" => "/aplicacion/Relacion8/index.php",
+        "ADICIONAL" => ""
+    ],
+];
+
+// Dibujamos la página usando las funciones de la plantilla
+inicioCabecera("Personalizar - Inicio");
+cabecera($colorFondo, $colorTexto);
+finCabecera();
+
+inicioCuerpo("Personalizar - Inicio", $barra);
+cuerpo($visitas);
+finCuerpo();
+// **********************************************************
+
+// --- VISTA ---
+function cabecera($colorFondo, $colorTexto)
+{
+?>
     <!-- Aplicamos los colores configurados al elemento con id="documento" -->
     <style>
         #documento {
             background-color: <?php echo htmlspecialchars($colorFondo, ENT_QUOTES, "UTF-8"); ?>;
             color: <?php echo htmlspecialchars($colorTexto, ENT_QUOTES, "UTF-8"); ?>;
+            padding: 15px;
         }
     </style>
-</head>
+<?php
+}
 
-<body>
+function cuerpo($visitas)
+{
+?>
     <!-- Contenedor principal al que se aplican los colores -->
     <div id="documento">
         <h1>Página de inicio de Personalizar</h1>
@@ -53,8 +80,7 @@ setcookie("contador_personalizar", (string) $visitas, time() + 60 * 60 * 24 * 30
         <p>Número de veces que has accedido a esta página: <strong><?php echo $visitas; ?></strong></p>
 
         <!-- Enlace para ir a cambiar los colores -->
-        <p><a href="personalizar.php">Ir a personalizar colores</a></p>
+        <p><a href="/aplicacion/personalizar/personalizar.php">Ir a personalizar colores</a></p>
     </div>
-</body>
-
-</html>
+<?php
+}

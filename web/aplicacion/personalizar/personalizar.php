@@ -1,8 +1,9 @@
 <?php
 // Incluimos la cabecera general de la aplicación
-include_once($_SERVER["DOCUMENT_ROOT"] . "/cabecera.php");
+include_once(dirname(__FILE__) . "/../../cabecera.php");
 
-// Colores por defecto: fondo blanco y texto negro
+// --- CONTROLADOR ---
+// Colores por defecto según el enunciado: fondo blanco y texto negro
 $colorFondo = "white";
 $colorTexto = "black";
 
@@ -15,7 +16,7 @@ if (isset($_COOKIE["color_texto"]) && array_key_exists($_COOKIE["color_texto"], 
     $colorTexto = $_COOKIE["color_texto"];
 }
 
-// Si se envía el formulario, guardamos los colores en cookies
+// Si se envía el formulario, validamos y guardamos los colores en cookies
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["guardar_colores"])) {
     $nuevoFondo = $_POST["color_fondo"] ?? "";
     $nuevoTexto = $_POST["color_texto"] ?? "";
@@ -30,31 +31,62 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["guardar_colores"])) {
         setcookie("color_texto", $colorTexto, time() + 60 * 60 * 24 * 30, "/");
     }
 }
-?>
-<!DOCTYPE html>
-<html lang="es">
 
-<head>
-    <meta charset="UTF-8">
-    <title>Personalizar - Relación 8</title>
+// Barra de navegación superior de la plantilla
+$barra = [
+    [
+        "TEXTO" => "Inicio",
+        "ENLACE" => "/index.php",
+        "ADICIONAL" => " "
+    ],
+    [
+        "TEXTO" => "Relacion 8",
+        "ENLACE" => "/aplicacion/Relacion8/index.php",
+        "ADICIONAL" => ""
+    ],
+];
+
+// Dibujamos la página usando las funciones de la plantilla
+inicioCabecera("Personalizar");
+cabecera($colorFondo, $colorTexto);
+finCabecera();
+
+inicioCuerpo("Personalizar", $barra);
+cuerpo($colorFondo, $colorTexto);
+finCuerpo();
+// **********************************************************
+
+// --- VISTA ---
+function cabecera($colorFondo, $colorTexto)
+{
+?>
+    <!-- Aplicamos los colores configurados al elemento con id="documento" -->
     <style>
         #documento {
             background-color: <?php echo htmlspecialchars($colorFondo, ENT_QUOTES, "UTF-8"); ?>;
             color: <?php echo htmlspecialchars($colorTexto, ENT_QUOTES, "UTF-8"); ?>;
+            padding: 15px;
         }
     </style>
-</head>
+<?php
+}
 
-<body>
+function cuerpo($colorFondo, $colorTexto)
+{
+?>
     <div id="documento">
         <h1>Personalizar colores</h1>
 
+        <!-- Formulario para seleccionar color de fondo y color de texto -->
         <form action="" method="post">
             <p>
                 <label for="color_fondo">Color de fondo:</label>
                 <select id="color_fondo" name="color_fondo">
-                    <?php foreach (COLORESFONDO as $valorCss => $nombreVisible): ?>
-                        <?php $selected = ($valorCss === $colorFondo) ? "selected" : ""; ?>
+                    <?php
+                    // Recorremos COLORESFONDO para generar las opciones
+                    foreach (COLORESFONDO as $valorCss => $nombreVisible):
+                        $selected = ($valorCss === $colorFondo) ? "selected" : "";
+                    ?>
                         <option value="<?php echo htmlspecialchars($valorCss, ENT_QUOTES, "UTF-8"); ?>" <?php echo $selected; ?>>
                             <?php echo htmlspecialchars($nombreVisible, ENT_QUOTES, "UTF-8"); ?>
                         </option>
@@ -65,8 +97,11 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["guardar_colores"])) {
             <p>
                 <label for="color_texto">Color del texto:</label>
                 <select id="color_texto" name="color_texto">
-                    <?php foreach (COLORESTEXTO as $valorCss => $nombreVisible): ?>
-                        <?php $selected = ($valorCss === $colorTexto) ? "selected" : ""; ?>
+                    <?php
+                    // Recorremos COLORESTEXTO para generar las opciones
+                    foreach (COLORESTEXTO as $valorCss => $nombreVisible):
+                        $selected = ($valorCss === $colorTexto) ? "selected" : "";
+                    ?>
                         <option value="<?php echo htmlspecialchars($valorCss, ENT_QUOTES, "UTF-8"); ?>" <?php echo $selected; ?>>
                             <?php echo htmlspecialchars($nombreVisible, ENT_QUOTES, "UTF-8"); ?>
                         </option>
@@ -75,10 +110,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["guardar_colores"])) {
             </p>
 
             <p>
+                <!-- Botón para enviar el formulario y guardar las cookies -->
                 <button type="submit" name="guardar_colores" value="1">Guardar colores</button>
             </p>
         </form>
     </div>
-</body>
-
-</html>
+<?php
+}

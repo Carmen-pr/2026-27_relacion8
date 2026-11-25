@@ -40,20 +40,41 @@ function inicioCabecera($titulo)
         <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 
         <link rel="stylesheet" type="text/css" href="/estilos/base.css">
-    <?php
+<?php
 }
 
 function finCabecera()
 {
-    ?>
+?>
     </head>
 <?php
+}
+
+function mostrarEnlacesRelacion8()
+{
+    $rutaActual = $_SERVER["PHP_SELF"] ?? "";
+    $rutasRelacion8 = [
+        "/aplicacion/Relacion8/",
+        "/aplicacion/personalizar/",
+        "/aplicacion/texto/",
+    ];
+
+    foreach ($rutasRelacion8 as $ruta) {
+        if (strpos($rutaActual, $ruta) !== false) {
+            ?>
+            <div class="relacion8">
+                <a href="/aplicacion/personalizar/index.php">Personalizar</a>
+                <a href="/aplicacion/personalizar/personalizar.php">Pag. Colores</a>
+            </div>
+            <?php
+            return;
+        }
+    }
 }
 
 function inicioCuerpo(string $cabecera, array $ubicacion = [])
 {
     global $acceso;
-
 ?>
 
     <body>
@@ -72,75 +93,52 @@ function inicioCuerpo(string $cabecera, array $ubicacion = [])
             <div id="barraLogin">
 
             </div>
+
             <div id="barraMenu">
                 <ul>
                     <li><a href="/index.php">Inicio</a></li>
                     <!-- <li><a href="/aplicacion/pruebas/index.php">Ejemplos Basicos</a></li> -->
-                    <li><a href="/aplicacion/Relacion8/relacion8.php">Relación 8</a></li>
-
-
+                    <li><a href="/aplicacion/Relacion8/index.php">Relación 8</a></li>
                 </ul>
-
             </div>
+
+            <?php mostrarEnlacesRelacion8(); ?>
+
             <div id="barraUbicacion">
                 <?php
                 if ($ubicacion) {
-
-
                     foreach ($ubicacion as $elemento) {
                         if (isset($elemento["ENLACE"])) {
-                            echo "<a href='{$elemento["ENLACE"]}' >";
+                            echo "<a href='{$elemento["ENLACE"]}'>";
                         }
-                        echo $elemento["TEXTO"];
 
+                        echo $elemento["TEXTO"];
 
                         if (isset($elemento["ENLACE"])) {
                             echo "</a>";
                         }
 
-                        if (isset($elemento["ADICIONAL"]))
+                        if (isset($elemento["ADICIONAL"])) {
                             echo $elemento["ADICIONAL"];
-                        else
+                        } else {
                             echo "&nbsp;&nbsp;";
-
-                        //otra solucion
-                        /*                                if (isset($elemento["ENLACE"]))
-                                    {
-                                        echo "<a href='{$elemento["ENLACE"]}' >";
-                                        echo $elemento["TEXTO"];
-                                        if (isset($elemento["ADICIONAL"]))
-                                            echo $elemento["ADICIONAL"];
-                                           else
-                                            echo "&nbsp;&nbsp;";
-                                        echo "</a>";
-                                    }
-                                   else
-                                    {
-                                        echo $elemento["TEXTO"];
-                                        if (isset($elemento["ADICIONAL"]))
-                                            echo $elemento["ADICIONAL"];
-                                           else
-                                            echo "&nbsp;&nbsp;";
-                                 
-                                    }
-*/
+                        }
                     }
                 }
-
-
                 ?>
             </div>
 
             <div>
-            <?php
-        }
+<?php
+}
 
-        function finCuerpo()
-        {
-            ?>
+function finCuerpo()
+{
+?>
                 <br />
                 <br />
             </div>
+
             <footer>
                 <hr width="90%" />
                 <div>
@@ -152,4 +150,4 @@ function inicioCuerpo(string $cabecera, array $ubicacion = [])
 
     </html>
 <?php
-        }
+}
