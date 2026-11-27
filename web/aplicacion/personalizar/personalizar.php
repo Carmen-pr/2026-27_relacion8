@@ -1,13 +1,13 @@
 <?php
-// Incluimos la cabecera general de la aplicación
+// Incluimos la cabecera general de la aplicación para cargar constantes, sesión, autocarga y plantilla
 include_once(dirname(__FILE__) . "/../../cabecera.php");
 
 // --- CONTROLADOR ---
-// Colores por defecto según el enunciado: fondo blanco y texto negro
+// Valores por defecto según el enunciado: fondo blanco y texto negro
 $colorFondo = "white";
 $colorTexto = "black";
 
-// Recuperamos cookies anteriores si existen y son válidas
+// Recuperamos los valores actuales desde cookies si existen y son válidos
 if (isset($_COOKIE["color_fondo"]) && array_key_exists($_COOKIE["color_fondo"], COLORESFONDO)) {
     $colorFondo = $_COOKIE["color_fondo"];
 }
@@ -16,26 +16,37 @@ if (isset($_COOKIE["color_texto"]) && array_key_exists($_COOKIE["color_texto"], 
     $colorTexto = $_COOKIE["color_texto"];
 }
 
-// Si se envía el formulario, validamos y guardamos los colores en cookies
-if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["guardar_colores"])) {
-    $nuevoFondo = $_POST["color_fondo"] ?? "";
-    $nuevoTexto = $_POST["color_texto"] ?? "";
+$mensajeGuardado = "";
+$errores = [];
 
-    if (array_key_exists($nuevoFondo, COLORESFONDO)) {
-        $colorFondo = $nuevoFondo;
+// Si se envía el formulario, validamos las opciones seleccionadas y guardamos las cookies
+if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST["guardar"])) {
+    $fondoSeleccionado = $_POST["color_fondo"] ?? "";
+    $textoSeleccionado = $_POST["color_texto"] ?? "";
+
+    if (!array_key_exists($fondoSeleccionado, COLORESFONDO)) {
+        $errores[] = "El color de fondo seleccionado no es válido.";
+    } else {
+        $colorFondo = $fondoSeleccionado;
         setcookie("color_fondo", $colorFondo, time() + 60 * 60 * 24 * 30, "/");
     }
 
-    if (array_key_exists($nuevoTexto, COLORESTEXTO)) {
-        $colorTexto = $nuevoTexto;
+    if (!array_key_exists($textoSeleccionado, COLORESTEXTO)) {
+        $errores[] = "El color de texto seleccionado no es válido.";
+    } else {
+        $colorTexto = $textoSeleccionado;
         setcookie("color_texto", $colorTexto, time() + 60 * 60 * 24 * 30, "/");
+    }
+
+    if (empty($errores)) {
+        $mensajeGuardado = "Preferencias de color actualizadas correctamente.";
     }
 }
 
 // Barra de navegación superior de la plantilla
 $barra = [
     [
-        "TEXTO" => "Inicio",
+        "TEXTO" => "inicio",
         "ENLACE" => "/index.php",
         "ADICIONAL" => " "
     ],
@@ -47,12 +58,11 @@ $barra = [
 ];
 
 // Dibujamos la página usando las funciones de la plantilla
-inicioCabecera("Personalizar");
+inicioCabecera("Personalizar Colores");
 cabecera($colorFondo, $colorTexto);
 finCabecera();
-
-inicioCuerpo("Personalizar", $barra);
-cuerpo($colorFondo, $colorTexto);
+inicioCuerpo("Personalizar Colores", $barra);
+cuerpo($colorFondo, $colorTexto, $mensajeGuardado, $errores);
 finCuerpo();
 // **********************************************************
 
@@ -65,55 +75,61 @@ function cabecera($colorFondo, $colorTexto)
         #documento {
             background-color: <?php echo htmlspecialchars($colorFondo, ENT_QUOTES, "UTF-8"); ?>;
             color: <?php echo htmlspecialchars($colorTexto, ENT_QUOTES, "UTF-8"); ?>;
-            padding: 15px;
         }
     </style>
 <?php
 }
 
-function cuerpo($colorFondo, $colorTexto)
+function cuerpo($colorFondo, $colorTexto, $mensajeGuardado, array $errores)
 {
 ?>
-    <div id="documento">
-        <h1>Personalizar colores</h1>
+    <h2 class="subtitulo-seccion">Configurar color de fondo y de texto</h2>
 
-        <!-- Formulario para seleccionar color de fondo y color de texto -->
-        <form action="" method="post">
-            <p>
-                <label for="color_fondo">Color de fondo:</label>
-                <select id="color_fondo" name="color_fondo">
-                    <?php
-                    // Recorremos COLORESFONDO para generar las opciones
-                    foreach (COLORESFONDO as $valorCss => $nombreVisible):
-                        $selected = ($valorCss === $colorFondo) ? "selected" : "";
-                    ?>
-                        <option value="<?php echo htmlspecialchars($valorCss, ENT_QUOTES, "UTF-8"); ?>" <?php echo $selected; ?>>
-                            <?php echo htmlspecialchars($nombreVisible, ENT_QUOTES, "UTF-8"); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </p>
+    <?php if (!empty($errores)): ?>
+        <!-- Mostramos errores de validación si se envían valores no permitidos -->
+        <div class="error">
+            <?php foreach ($errores as $error): ?>
+                <div><?php echo htmlspecialchars($error, ENT_QUOTES, "UTF-8"); ?></div>
+            <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
 
-            <p>
-                <label for="color_texto">Color del texto:</label>
-                <select id="color_texto" name="color_texto">
-                    <?php
-                    // Recorremos COLORESTEXTO para generar las opciones
-                    foreach (COLORESTEXTO as $valorCss => $nombreVisible):
-                        $selected = ($valorCss === $colorTexto) ? "selected" : "";
-                    ?>
-                        <option value="<?php echo htmlspecialchars($valorCss, ENT_QUOTES, "UTF-8"); ?>" <?php echo $selected; ?>>
-                            <?php echo htmlspecialchars($nombreVisible, ENT_QUOTES, "UTF-8"); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </p>
+    <?php if ($mensajeGuardado !== ""): ?>
+        <!-- Confirmación de que las cookies se han guardado -->
+        <p><strong><?php echo htmlspecialchars($mensajeGuardado, ENT_QUOTES, "UTF-8"); ?></strong></p>
+    <?php endif; ?>
 
-            <p>
-                <!-- Botón para enviar el formulario y guardar las cookies -->
-                <button type="submit" name="guardar_colores" value="1">Guardar colores</button>
-            </p>
-        </form>
-    </div>
+    <!-- Formulario con combos para seleccionar color de fondo y color de texto -->
+    <form action="" method="post">
+        <div class="campo-form">
+            <label for="color_fondo">Color de fondo:</label>
+            <select id="color_fondo" name="color_fondo" class="for_texto">
+                <?php foreach (COLORESFONDO as $clave => $etiqueta): ?>
+                    <option value="<?php echo htmlspecialchars($clave, ENT_QUOTES, "UTF-8"); ?>"
+                        <?php echo ($colorFondo === $clave) ? "selected" : ""; ?>>
+                        <?php echo htmlspecialchars($etiqueta, ENT_QUOTES, "UTF-8"); ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+
+        <div class="campo-form">
+            <label for="color_texto">Color de texto:</label>
+            <select id="color_texto" name="color_texto" class="for_texto">
+                <?php foreach (COLORESTEXTO as $clave => $etiqueta): ?>
+                    <option value="<?php echo htmlspecialchars($clave, ENT_QUOTES, "UTF-8"); ?>"
+                        <?php echo ($colorTexto === $clave) ? "selected" : ""; ?>>
+                        <?php echo htmlspecialchars($etiqueta, ENT_QUOTES, "UTF-8"); ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+
+        <div class="campo-form">
+            <button type="submit" name="guardar" value="1" class="boton">Guardar colores</button>
+        </div>
+    </form>
+
+    <p><a href="/aplicacion/personalizar/index.php">Volver a Personalizar - Inicio</a></p>
 <?php
 }
