@@ -99,8 +99,8 @@ function cuerpo(string $contenidoTextarea, string $error)
         <div class="campo-form">
             <label for="historial_textos">Textos registrados:</label><br>
             <textarea id="historial_textos" name="historial_textos" rows="10" cols="80" class="for_texto" readonly><?php
-                echo htmlspecialchars($contenidoTextarea, ENT_QUOTES, "UTF-8");
-            ?></textarea>
+                                                                                                                    echo htmlspecialchars($contenidoTextarea, ENT_QUOTES, "UTF-8");
+                                                                                                                    ?></textarea>
         </div>
 
         <div class="campo-form">

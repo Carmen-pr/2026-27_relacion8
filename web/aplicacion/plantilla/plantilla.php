@@ -40,14 +40,14 @@ function inicioCabecera($titulo)
         <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 
         <link rel="stylesheet" type="text/css" href="/estilos/base.css">
-<?php
+    <?php
 }
 
 function finCabecera()
 {
-?>
+    ?>
     </head>
-<?php
+    <?php
 }
 
 function mostrarEnlacesRelacion8()
@@ -57,16 +57,20 @@ function mostrarEnlacesRelacion8()
         "/aplicacion/Relacion8/",
         "/aplicacion/personalizar/",
         "/aplicacion/texto/",
+        "/aplicaion/verTeto",
     ];
 
     foreach ($rutasRelacion8 as $ruta) {
         if (strpos($rutaActual, $ruta) !== false) {
-            ?>
+    ?>
             <div class="relacion8">
                 <a href="/aplicacion/personalizar/index.php">Personalizar</a>
                 <a href="/aplicacion/personalizar/personalizar.php">Pag. Colores</a>
+                <a href="/aplicacion/texto/verTextos.php">Ver Texto </a>
+                <a href="/aplicacion/acceso/login.php">Inicio de Sesion </a>
+                
             </div>
-            <?php
+    <?php
             return;
         }
     }
@@ -75,7 +79,7 @@ function mostrarEnlacesRelacion8()
 function inicioCuerpo(string $cabecera, array $ubicacion = [])
 {
     global $acceso;
-?>
+    ?>
 
     <body>
 
@@ -129,12 +133,12 @@ function inicioCuerpo(string $cabecera, array $ubicacion = [])
             </div>
 
             <div>
-<?php
-}
+            <?php
+        }
 
-function finCuerpo()
-{
-?>
+        function finCuerpo()
+        {
+            ?>
                 <br />
                 <br />
             </div>
@@ -150,4 +154,5 @@ function finCuerpo()
 
     </html>
 <?php
+
 }

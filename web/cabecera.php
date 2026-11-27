@@ -43,9 +43,9 @@ define("COLORESFONDO", [
 // Registramos la función de autocarga para localizar clases automáticamente
 spl_autoload_register(function ($clase) {
     // Ruta donde se guardan las clases reutilizables (ACLBase, ACLArray, Acceso, etc.)
-    $ficheroScripts = RUTABASE . "./scripts/clases/$clase.php";
+    $ficheroScripts = RUTABASE . "/scripts/clases/$clase.php";
     // Ruta donde se guardan las clases propias de la aplicación (RegistroTexto, etc.)
-    $ficheroApp = RUTABASE . "./aplicacion/clases/$clase.php";
+    $ficheroApp = RUTABASE . "/aplicacion/clases/$clase.php";
 
     // Cargamos la clase desde scripts/clases si existe
     if (file_exists($ficheroScripts)) {
